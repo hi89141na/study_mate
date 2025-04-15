@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1045493904151",
+    "project_id": "study-mate-7b9c7",
+    "storage_bucket": "study-mate-7b9c7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1045493904151:android:3d29a94488ac87e362fd52",
+        "android_client_info": {
+          "package_name": "com.example.study"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAs7R-A8KlGn-LnIU-LDj4GSeU60Ql6OZs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
