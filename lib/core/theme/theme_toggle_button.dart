@@ -8,17 +8,24 @@ class ThemeToggleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isDark = authService.isDarkMode;
 
     return IconButton(
-      icon: Icon(
-        isDarkMode ? Icons.light_mode : Icons.dark_mode,
-        color: isDarkMode ? Colors.yellow : Colors.blueGrey,
+      icon: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return ScaleTransition(scale: animation, child: child);
+        },
+        child: Icon(
+          isDark ? Icons.wb_sunny_outlined : Icons.nightlight_round,
+          key: ValueKey<bool>(isDark),
+          color: isDark ? Colors.amber : Colors.indigo,
+        ),
       ),
       onPressed: () {
         authService.toggleThemeMode();
       },
-      tooltip: isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+      tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
     );
   }
 } 

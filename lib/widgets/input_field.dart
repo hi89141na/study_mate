@@ -3,40 +3,32 @@ import 'package:flutter/services.dart';
 
 class InputField extends StatelessWidget {
   final String label;
-  final TextEditingController controller;
   final String? hint;
+  final TextEditingController controller;
+  final TextInputType keyboardType;
+  final bool obscureText;
   final IconData? prefixIcon;
   final IconData? suffixIcon;
-  final bool obscureText;
   final VoidCallback? onSuffixIconPressed;
-  final TextInputType keyboardType;
   final String? Function(String?)? validator;
-  final List<TextInputFormatter>? inputFormatters;
-  final int? maxLines;
-  final int? maxLength;
-  final bool autofocus;
-  final FocusNode? focusNode;
-  final VoidCallback? onSubmitted;
-  final bool enabled;
+  final int maxLines;
+  final bool readOnly;
+  final VoidCallback? onTap;
 
   const InputField({
     Key? key,
     required this.label,
-    required this.controller,
     this.hint,
+    required this.controller,
+    this.keyboardType = TextInputType.text,
+    this.obscureText = false,
     this.prefixIcon,
     this.suffixIcon,
-    this.obscureText = false,
     this.onSuffixIconPressed,
-    this.keyboardType = TextInputType.text,
     this.validator,
-    this.inputFormatters,
     this.maxLines = 1,
-    this.maxLength,
-    this.autofocus = false,
-    this.focusNode,
-    this.onSubmitted,
-    this.enabled = true,
+    this.readOnly = false,
+    this.onTap,
   }) : super(key: key);
 
   @override
@@ -57,22 +49,19 @@ class InputField extends StatelessWidget {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
-          obscureText: obscureText,
           keyboardType: keyboardType,
+          obscureText: obscureText,
           validator: validator,
-          inputFormatters: inputFormatters,
           maxLines: maxLines,
-          maxLength: maxLength,
-          autofocus: autofocus,
-          focusNode: focusNode,
-          enabled: enabled,
-          onFieldSubmitted: (value) {
-            if (onSubmitted != null) {
-              onSubmitted!();
-            }
-          },
+          readOnly: readOnly,
+          onTap: onTap,
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: TextStyle(
+              color: Theme.of(context).brightness == Brightness.light
+                  ? Colors.black38
+                  : Colors.white38,
+            ),
             prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
             suffixIcon: suffixIcon != null
                 ? IconButton(
@@ -80,7 +69,6 @@ class InputField extends StatelessWidget {
                     onPressed: onSuffixIconPressed,
                   )
                 : null,
-            counterText: "",
           ),
         ),
       ],

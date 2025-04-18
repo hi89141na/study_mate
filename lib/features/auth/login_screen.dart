@@ -28,18 +28,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() async {
     if (_formKey.currentState!.validate()) {
-      _errorMessage = null;
+      setState(() {
+        _errorMessage = null;
+      });
       try {
         final authService = Provider.of<AuthService>(context, listen: false);
-        await authService.signInWithEmailAndPassword(
+        final user = await authService.signInWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text,
         );
-        // Navigation is handled by main.dart based on auth state
+        
+        // If we got here and user is null, login might have silently failed
+        if (user == null && authService.currentUser == null && !authService.isAuthenticated) {
+          setState(() {
+            _errorMessage = 'Login failed. Please try again.';
+          });
+        }
+        // Navigation is handled by auth state changes
       } catch (e) {
         setState(() {
           _errorMessage = _getFirebaseErrorMessage(e.toString());
         });
+        print('Login error: $e'); // Log for debugging
       }
     }
   }

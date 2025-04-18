@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/utils/constants.dart';
+import '../../core/utils/enums.dart';
 import '../../models/study_session_model.dart';
 import '../../widgets/input_field.dart';
 import '../../widgets/mood_selector.dart';
@@ -38,7 +39,7 @@ class _SessionFormWidgetState extends State<SessionFormWidget> {
         userId: widget.userId,
         subject: _subjectController.text.trim(),
         durationMinutes: _selectedDuration,
-        mood: _selectedMood,
+        mood: _selectedMood.value,
         reflection: _reflectionController.text.trim(),
       );
       
@@ -69,9 +70,28 @@ class _SessionFormWidgetState extends State<SessionFormWidget> {
           _buildDurationSelector(),
           const SizedBox(height: 16),
           MoodSelector(
-            selectedMood: _selectedMood,
+            selectedMood: _selectedMood.value,
             onMoodSelected: (mood) {
-              setState(() => _selectedMood = mood);
+              setState(() {
+                // Convert int to MoodType
+                switch (mood) {
+                  case 1:
+                    _selectedMood = MoodType.great;
+                    break;
+                  case 2:
+                    _selectedMood = MoodType.good;
+                    break;
+                  case 3:
+                    _selectedMood = MoodType.neutral;
+                    break;
+                  case 4:
+                    _selectedMood = MoodType.tired;
+                    break;
+                  case 5:
+                    _selectedMood = MoodType.stressed;
+                    break;
+                }
+              });
             },
           ),
           const SizedBox(height: 16),

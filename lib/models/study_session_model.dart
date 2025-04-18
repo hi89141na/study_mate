@@ -1,14 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
-enum MoodType { great, good, neutral, tired, stressed }
-
 class StudySessionModel {
   final String id;
   final String userId;
   final String subject;
   final int durationMinutes;
-  final MoodType mood;
+  final int mood; // 1-5 scale: 1=great, 2=good, 3=neutral, 4=tired, 5=stressed
   final String reflection;
   final DateTime createdAt;
 
@@ -31,7 +29,7 @@ class StudySessionModel {
       userId: data['userId'] ?? '',
       subject: data['subject'] ?? '',
       durationMinutes: data['durationMinutes'] ?? 0,
-      mood: MoodType.values[data['mood'] ?? 2], // Default to neutral
+      mood: data['mood'] ?? 3,
       reflection: data['reflection'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
@@ -42,7 +40,7 @@ class StudySessionModel {
       'userId': userId,
       'subject': subject,
       'durationMinutes': durationMinutes,
-      'mood': mood.index,
+      'mood': mood,
       'reflection': reflection,
       'createdAt': Timestamp.fromDate(createdAt),
     };
@@ -50,35 +48,23 @@ class StudySessionModel {
 
   String getMoodEmoji() {
     switch (mood) {
-      case MoodType.great:
-        return '😁';
-      case MoodType.good:
-        return '🙂';
-      case MoodType.neutral:
-        return '😐';
-      case MoodType.tired:
-        return '😴';
-      case MoodType.stressed:
-        return '😰';
-      default:
-        return '😐';
+      case 1: return '😁'; // Great
+      case 2: return '🙂'; // Good
+      case 3: return '😐'; // Neutral
+      case 4: return '😴'; // Tired
+      case 5: return '😰'; // Stressed
+      default: return '😐';
     }
   }
 
   String getMoodString() {
     switch (mood) {
-      case MoodType.great:
-        return 'Great';
-      case MoodType.good:
-        return 'Good';
-      case MoodType.neutral:
-        return 'Neutral';
-      case MoodType.tired:
-        return 'Tired';
-      case MoodType.stressed:
-        return 'Stressed';
-      default:
-        return 'Neutral';
+      case 1: return 'Great';
+      case 2: return 'Good';
+      case 3: return 'Neutral';
+      case 4: return 'Tired';
+      case 5: return 'Stressed';
+      default: return 'Neutral';
     }
   }
 } 

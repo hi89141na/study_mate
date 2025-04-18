@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import '../utils/constants.dart';
 import '../../models/study_session_model.dart';
 import '../../models/user_model.dart';
@@ -7,23 +8,45 @@ class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // User related methods
-  Future<void> createUserDocument(UserModel user) async {
-    await _firestore
-        .collection(AppConstants.usersCollection)
-        .doc(user.uid)
-        .set(user.toMap());
+  Future<bool> createUserDocument(UserModel user) async {
+    try {
+      // Add timeout to prevent hanging
+      await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(user.uid)
+          .set(user.toMap())
+          .timeout(const Duration(seconds: 10), onTimeout: () {
+        throw TimeoutException('Firestore operation timed out.');
+      });
+      print('User document created successfully for uid: ${user.uid}');
+      return true;
+    } catch (e) {
+      print('Error creating user document: $e');
+      // Return false instead of rethrowing to avoid crashing the signup process
+      // The auth user is still created even if the Firestore document fails
+      return false;
+    }
   }
 
   Future<UserModel?> getUserData(String userId) async {
-    final doc = await _firestore
-        .collection(AppConstants.usersCollection)
-        .doc(userId)
-        .get();
-    
-    if (doc.exists) {
-      return UserModel.fromFirestore(doc);
+    try {
+      // Add timeout to prevent hanging
+      final doc = await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(userId)
+          .get()
+          .timeout(const Duration(seconds: 10), onTimeout: () {
+        throw TimeoutException('Firestore operation timed out.');
+      });
+      
+      if (doc.exists) {
+        return UserModel.fromFirestore(doc);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting user data: $e');
+      return null; // Return null on error to prevent app crashes
     }
-    return null;
   }
 
   Future<void> updateUserThemePreference(String userId, bool isDarkMode) async {

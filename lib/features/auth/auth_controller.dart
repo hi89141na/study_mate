@@ -18,6 +18,11 @@ class AuthController extends StatelessWidget {
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
 
+    // Print debug information
+    print('AuthController - isLoading: ${authService.isLoading}');
+    print('AuthController - isAuthenticated: ${authService.isAuthenticated}');
+    print('AuthController - currentUser: ${authService.currentUser}');
+
     if (authService.isLoading) {
       return loadingScreen ??
           Scaffold(
@@ -29,7 +34,8 @@ class AuthController extends StatelessWidget {
           );
     }
 
-    if (authService.isAuthenticated) {
+    // Check both Firebase Auth state and our own user model
+    if (authService.isAuthenticated || authService.currentUser != null) {
       return homeScreenBuilder;
     }
 

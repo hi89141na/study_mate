@@ -1,95 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/firebase_service.dart';
+import '../../core/theme/theme_toggle_button.dart';
 import 'mood_chart.dart';
 import 'subject_pie_chart.dart';
 import 'time_chart.dart';
 
-class AnalyticsScreen extends StatefulWidget {
+class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({Key? key}) : super(key: key);
-
-  @override
-  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
-}
-
-class _AnalyticsScreenState extends State<AnalyticsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Analytics'),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Theme.of(context).colorScheme.primary,
-          labelColor: isDarkMode ? Colors.white : Colors.black,
-          tabs: const [
-            Tab(text: 'Time'),
-            Tab(text: 'Mood'),
-            Tab(text: 'Subjects'),
-          ],
+    final firebaseService = Provider.of<FirebaseService>(context);
+    
+    if (!authService.isAuthenticated) {
+      return Center(
+        child: Text(
+          'You need to login to view analytics',
+          style: Theme.of(context).textTheme.titleMedium,
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildContent(
-            title: 'Study Time',
-            description: 'Track your study hours over time',
-            chart: const TimeChart(),
-          ),
-          _buildContent(
-            title: 'Mood Trends',
-            description: 'See how your mood changes during study sessions',
-            chart: const MoodChart(sessions: []),
-          ),
-          _buildContent(
-            title: 'Subject Distribution',
-            description: 'Analyze time spent on different subjects',
-            chart: const SubjectPieChart(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContent({
-    required String title,
-    required String description,
-    required Widget chart,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+      );
+    }
+    
+    final String userId = authService.currentUser?.uid ?? '';
+    if (userId.isEmpty) {
+      return Center(
+        child: Text(
+          'Unable to load user data. Please try again.',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      );
+    }
+    
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
-            style: const TextStyle(
-              fontSize: 20,
+            'Your Study Analytics',
+            style: TextStyle(
+              fontSize: 24,
               fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            description,
+            'Track your progress and study habits',
             style: TextStyle(
               fontSize: 14,
               color: Theme.of(context).brightness == Brightness.light
@@ -98,9 +58,181 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             ),
           ),
           const SizedBox(height: 24),
-          Expanded(child: chart),
+          _buildAnalyticsCard(
+            context,
+            title: 'Total Study Time',
+            child: FutureBuilder<int>(
+              future: firebaseService.getTotalStudyMinutes(userId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 300,
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                
+                if (snapshot.hasError) {
+                  return SizedBox(
+                    height: 300,
+                    child: Center(
+                      child: Text(
+                        'Error loading data',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                
+                final totalMinutes = snapshot.data ?? 0;
+                final hours = totalMinutes ~/ 60;
+                final minutes = totalMinutes % 60;
+                
+                return Column(
+                  children: [
+                    Text(
+                      hours > 0 
+                          ? '$hours hrs $minutes min'
+                          : '$minutes min',
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const TimeChart(),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildAnalyticsCard(
+            context,
+            title: 'Subject Distribution',
+            child: FutureBuilder<Map<String, int>>(
+              future: firebaseService.getSubjectDistribution(userId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 300,
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                
+                if (snapshot.hasError) {
+                  return SizedBox(
+                    height: 300,
+                    child: Center(
+                      child: Text(
+                        'Error loading data',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                
+                final subjectData = snapshot.data;
+                
+                if (subjectData == null || subjectData.isEmpty) {
+                  return const SizedBox(
+                    height: 300,
+                    child: Center(
+                      child: Text('No data available'),
+                    ),
+                  );
+                }
+                
+                return SubjectPieChart(subjectData: subjectData);
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildAnalyticsCard(
+            context,
+            title: 'Mood Distribution',
+            child: FutureBuilder<Map<int, int>>(
+              future: firebaseService.getMoodDistribution(userId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 300,
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                
+                if (snapshot.hasError) {
+                  return SizedBox(
+                    height: 300,
+                    child: Center(
+                      child: Text(
+                        'Error loading data',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                
+                final moodData = snapshot.data;
+                
+                if (moodData == null || moodData.isEmpty) {
+                  return const SizedBox(
+                    height: 300,
+                    child: Center(
+                      child: Text('No data available'),
+                    ),
+                  );
+                }
+                
+                return MoodChart(moodData: moodData);
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
-} 
+  
+  Widget _buildAnalyticsCard(
+    BuildContext context, {
+    required String title,
+    required Widget child,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}

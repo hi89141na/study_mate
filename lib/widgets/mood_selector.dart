@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../models/study_session_model.dart';
+import '../core/utils/constants.dart';
 
 class MoodSelector extends StatelessWidget {
-  final MoodType selectedMood;
-  final Function(MoodType) onMoodSelected;
+  final int selectedMood;
+  final Function(int) onMoodSelected;
 
   const MoodSelector({
     Key? key,
@@ -17,7 +17,7 @@ class MoodSelector extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'How do you feel?',
+          'How are you feeling?',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -30,51 +30,19 @@ class MoodSelector extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildMoodOption(
-              context, 
-              MoodType.great, 
-              '😁', 
-              'Great',
-            ),
-            _buildMoodOption(
-              context, 
-              MoodType.good, 
-              '🙂', 
-              'Good',
-            ),
-            _buildMoodOption(
-              context, 
-              MoodType.neutral, 
-              '😐', 
-              'Neutral',
-            ),
-            _buildMoodOption(
-              context, 
-              MoodType.tired, 
-              '😴', 
-              'Tired',
-            ),
-            _buildMoodOption(
-              context, 
-              MoodType.stressed, 
-              '😰', 
-              'Stressed',
-            ),
+            for (int i = 1; i <= 5; i++)
+              _buildMoodOption(context, i),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildMoodOption(
-    BuildContext context, 
-    MoodType mood, 
-    String emoji, 
-    String label,
-  ) {
+  Widget _buildMoodOption(BuildContext context, int mood) {
     final isSelected = selectedMood == mood;
-    final theme = Theme.of(context);
-
+    final emoji = AppConstants.moodEmojis[mood] ?? '😐';
+    final label = AppConstants.moodDescriptions[mood] ?? 'Neutral';
+    
     return GestureDetector(
       onTap: () => onMoodSelected(mood),
       child: Column(
@@ -83,15 +51,17 @@ class MoodSelector extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isSelected
-                  ? theme.colorScheme.primary.withOpacity(0.1)
-                  : theme.cardTheme.color,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : Colors.transparent,
-                width: 2,
-              ),
+                  ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                  : Theme.of(context).brightness == Brightness.light
+                      ? Colors.grey.shade100
+                      : Colors.grey.shade800,
+              borderRadius: BorderRadius.circular(12),
+              border: isSelected
+                  ? Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    )
+                  : null,
             ),
             child: Text(
               emoji,
@@ -104,10 +74,10 @@ class MoodSelector extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.brightness == Brightness.light
-                      ? Colors.black87
-                      : Colors.white70,
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).brightness == Brightness.light
+                      ? Colors.black54
+                      : Colors.white54,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
           ),

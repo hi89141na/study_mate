@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';  // Add this import for TimeoutException
 import '../services/firebase_service.dart';
 import '../utils/constants.dart';
 import '../../models/user_model.dart';
@@ -11,6 +12,7 @@ class AuthService extends ChangeNotifier {
   UserModel? _currentUser;
   bool _isLoading = false;
   bool _isDarkMode = false;
+  StreamSubscription<User?>? _authStateSubscription;
 
   // Getters
   UserModel? get currentUser => _currentUser;
@@ -22,6 +24,7 @@ class AuthService extends ChangeNotifier {
   AuthService() {
     _loadThemePreference();
     _initCurrentUser();
+    _setupAuthStateListener();
   }
 
   // Initialize current user if already logged in
@@ -36,6 +39,28 @@ class AuthService extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  // Set up a listener for Firebase Auth state changes
+  void _setupAuthStateListener() {
+    _authStateSubscription = _auth.authStateChanges().listen((User? user) async {
+      print('Firebase Auth state changed - User: ${user?.uid}');
+      
+      if (user != null && (_currentUser == null || _currentUser?.uid != user.uid)) {
+        // User logged in or different user logged in
+        await _fetchUserData(user.uid);
+      } else if (user == null && _currentUser != null) {
+        // User logged out
+        _currentUser = null;
+        notifyListeners();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authStateSubscription?.cancel();
+    super.dispose();
   }
 
   // Load theme preference from SharedPreferences
@@ -68,13 +93,55 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Add a method to manually refresh user data
+  Future<bool> refreshUserData() async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser != null) {
+      try {
+        await _fetchUserData(firebaseUser.uid);
+        return true;
+      } catch (e) {
+        print('Error refreshing user data: $e');
+        return false;
+      }
+    }
+    return false;
+  }
+
   // Fetch user data from Firestore
   Future<void> _fetchUserData(String userId) async {
-    UserModel? user = await _firebaseService.getUserData(userId);
-    if (user != null) {
-      _currentUser = user;
-      _isDarkMode = user.isDarkMode;
-      await _saveThemePreference(_isDarkMode);
+    try {
+      print('Fetching user data for $userId');
+      UserModel? user = await _firebaseService.getUserData(userId);
+      
+      if (user != null) {
+        print('User data fetched successfully: ${user.displayName}');
+        _currentUser = user;
+        _isDarkMode = user.isDarkMode;
+        await _saveThemePreference(_isDarkMode);
+        notifyListeners(); // Notify listeners after updating the user data
+      } else {
+        print('No user data found in Firestore for $userId');
+        // Create a default user if Firebase Auth has the user but Firestore doesn't
+        final firebaseUser = _auth.currentUser;
+        if (firebaseUser != null) {
+          final defaultUser = UserModel(
+            uid: userId,
+            email: firebaseUser.email ?? '',
+            displayName: firebaseUser.displayName ?? 'User',
+            createdAt: DateTime.now(),
+            isDarkMode: _isDarkMode,
+          );
+          
+          // Try to save this default user to Firestore
+          await _firebaseService.createUserDocument(defaultUser);
+          _currentUser = defaultUser;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      print('Error in _fetchUserData: $e');
+      // Don't throw, just log the error
     }
   }
 
@@ -111,30 +178,59 @@ class AuthService extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
+      // Add timeout to prevent infinite loading
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
-      );
+      ).timeout(const Duration(seconds: 15), onTimeout: () {
+        throw TimeoutException('Registration timed out. Please check your connection.');
+      });
 
       User? user = result.user;
       if (user != null) {
-        // Create the user document in Firestore
-        UserModel newUser = UserModel(
-          uid: user.uid,
-          email: email,
-          displayName: displayName,
-          createdAt: DateTime.now(),
-          isDarkMode: _isDarkMode,
-        );
+        try {
+          // Create the user document in Firestore
+          UserModel newUser = UserModel(
+            uid: user.uid,
+            email: email,
+            displayName: displayName,
+            createdAt: DateTime.now(),
+            isDarkMode: _isDarkMode,
+          );
 
-        await _firebaseService.createUserDocument(newUser);
-        _currentUser = newUser;
-        return newUser;
+          bool firestoreSuccess = await _firebaseService.createUserDocument(newUser);
+          if (!firestoreSuccess) {
+            print('Warning: User created in Authentication but Firestore document creation failed');
+          }
+          
+          // Set current user regardless of Firestore result
+          _currentUser = newUser;
+          return newUser;
+        } catch (e) {
+          // If Firestore document creation fails but Firebase Auth succeeded
+          print('User created in Authentication but failed in Firestore: $e');
+          // Still return a user to avoid showing an error
+          _currentUser = UserModel(
+            uid: user.uid, 
+            email: email,
+            displayName: displayName,
+            createdAt: DateTime.now(),
+            isDarkMode: _isDarkMode,
+          );
+          return _currentUser;
+        }
       }
       return null;
+    } on FirebaseAuthException catch (e) {
+      // Log the detailed error for debugging
+      print('Firebase Auth Error: ${e.code} - ${e.message}');
+      rethrow; // Rethrow to be handled by the UI
     } catch (e) {
+      // Log general errors
+      print('Error during registration: $e');
       rethrow;
     } finally {
+      // Ensure loading state is reset
       _isLoading = false;
       notifyListeners();
     }
