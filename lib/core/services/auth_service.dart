@@ -1,13 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:async';  // Add this import for TimeoutException
+import 'dart:async';
 import '../services/firebase_service.dart';
 import '../utils/constants.dart';
 import '../../models/user_model.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseService _firebaseService = FirebaseService();
   UserModel? _currentUser;
   bool _isLoading = false;
@@ -235,10 +237,75 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
     }
   }
+  
+  // Sign in with Google
+  Future<UserModel?> signInWithGoogle() async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Begin interactive sign-in process
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User canceled the sign-in process
+        return null;
+      }
+
+      // Obtain auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the Google Auth credential
+      final UserCredential result = await _auth.signInWithCredential(credential);
+      final User? user = result.user;
+
+      if (user != null) {
+        // Check if the user exists in Firestore
+        UserModel? existingUser = await _firebaseService.getUserData(user.uid);
+
+        if (existingUser == null) {
+          // User doesn't exist in Firestore, create a new document
+          UserModel newUser = UserModel(
+            uid: user.uid,
+            email: user.email ?? '',
+            displayName: user.displayName ?? 'Google User',
+            createdAt: DateTime.now(),
+            isDarkMode: _isDarkMode,
+          );
+
+          await _firebaseService.createUserDocument(newUser);
+          _currentUser = newUser;
+        } else {
+          // User already exists in Firestore
+          _currentUser = existingUser;
+          _isDarkMode = existingUser.isDarkMode;
+          await _saveThemePreference(_isDarkMode);
+        }
+
+        notifyListeners();
+        return _currentUser;
+      }
+      
+      return null;
+    } catch (e) {
+      print('Error signing in with Google: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   // Sign out
   Future<void> signOut() async {
     try {
+      // Sign out from Google if signed in with Google
+      await _googleSignIn.signOut();
       await _auth.signOut();
       _currentUser = null;
       // Don't reset theme preference on logout

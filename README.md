@@ -226,3 +226,8 @@ From the code imports, the following packages are used:
 10. *Push Notifications*: For study reminders and streak maintenance
 
 This application follows a feature-first architecture with clear separation of concerns between UI, business logic, and data layers. It makes good use of Firebase services for authentication and data storage while maintaining a clean and consistent UI with proper theming support.
+
+
+
+How to get sha values use
+keytool -list -v -keystore "C:\Users\User\.android\debug.keystore" -alias androiddebugkey -storepass android -keypass android

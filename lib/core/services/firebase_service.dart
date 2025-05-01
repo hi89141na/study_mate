@@ -109,6 +109,45 @@ class FirebaseService {
     return totalMinutes;
   }
 
+  Future<int> getTodayStudyMinutes(String userId) async {
+    // Get today's date at midnight
+    final DateTime now = DateTime.now();
+    final DateTime todayStart = DateTime(now.year, now.month, now.day);
+    final DateTime todayEnd = todayStart.add(const Duration(days: 1));
+    
+    QuerySnapshot query = await _firestore
+        .collection(AppConstants.sessionsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(todayStart))
+        .where('createdAt', isLessThan: Timestamp.fromDate(todayEnd))
+        .get();
+    
+    int todayMinutes = 0;
+    for (var doc in query.docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      todayMinutes += data['durationMinutes'] as int;
+    }
+    
+    return todayMinutes;
+  }
+
+  Future<int> getStudyMinutesForPeriod(String userId, DateTime startDate, DateTime endDate) async {
+    QuerySnapshot query = await _firestore
+        .collection(AppConstants.sessionsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where('createdAt', isLessThan: Timestamp.fromDate(endDate))
+        .get();
+    
+    int totalMinutes = 0;
+    for (var doc in query.docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      totalMinutes += data['durationMinutes'] as int;
+    }
+    
+    return totalMinutes;
+  }
+
   Future<Map<String, int>> getSubjectDistribution(String userId) async {
     QuerySnapshot query = await _firestore
         .collection(AppConstants.sessionsCollection)
@@ -131,10 +170,57 @@ class FirebaseService {
     return subjectDistribution;
   }
 
+  Future<Map<String, int>> getSubjectDistributionForPeriod(String userId, DateTime startDate, DateTime endDate) async {
+    QuerySnapshot query = await _firestore
+        .collection(AppConstants.sessionsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where('createdAt', isLessThan: Timestamp.fromDate(endDate))
+        .get();
+    
+    Map<String, int> subjectDistribution = {};
+    for (var doc in query.docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      String subject = data['subject'];
+      int duration = data['durationMinutes'];
+      
+      if (subjectDistribution.containsKey(subject)) {
+        subjectDistribution[subject] = subjectDistribution[subject]! + duration;
+      } else {
+        subjectDistribution[subject] = duration;
+      }
+    }
+    
+    return subjectDistribution;
+  }
+
   Future<Map<int, int>> getMoodDistribution(String userId) async {
     QuerySnapshot query = await _firestore
         .collection(AppConstants.sessionsCollection)
         .where('userId', isEqualTo: userId)
+        .get();
+    
+    Map<int, int> moodDistribution = {};
+    for (var doc in query.docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      int mood = data['mood'];
+      
+      if (moodDistribution.containsKey(mood)) {
+        moodDistribution[mood] = moodDistribution[mood]! + 1;
+      } else {
+        moodDistribution[mood] = 1;
+      }
+    }
+    
+    return moodDistribution;
+  }
+
+  Future<Map<int, int>> getMoodDistributionForPeriod(String userId, DateTime startDate, DateTime endDate) async {
+    QuerySnapshot query = await _firestore
+        .collection(AppConstants.sessionsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where('createdAt', isLessThan: Timestamp.fromDate(endDate))
         .get();
     
     Map<int, int> moodDistribution = {};

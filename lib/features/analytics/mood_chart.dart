@@ -24,11 +24,16 @@ class MoodChart extends StatelessWidget {
       );
     }
 
-    return SizedBox(
-      height: 300,
+    // Use SingleChildScrollView to prevent overflow
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
       child: Column(
+        mainAxisSize: MainAxisSize.min, // Use min to prevent expanding
         children: [
-          _buildChart(context),
+          SizedBox(
+            height: 220, // Reduced height
+            child: _buildChart(context),
+          ),
           const SizedBox(height: 16),
           _buildLegend(context),
         ],
@@ -143,27 +148,31 @@ class MoodChart extends StatelessWidget {
   Widget _buildLegend(BuildContext context) {
     return Wrap(
       alignment: WrapAlignment.center,
-      spacing: 16,
+      spacing: 10, // Reduced spacing
+      runSpacing: 8, // Added run spacing
       children: List.generate(5, (index) {
         final moodNumber = index + 1;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              AppConstants.moodEmojis[moodNumber] ?? '',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              AppConstants.moodDescriptions[moodNumber] ?? '',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).brightness == Brightness.light
-                    ? Colors.black54
-                    : Colors.white70,
+        return Container(
+          margin: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                AppConstants.moodEmojis[moodNumber] ?? '',
+                style: const TextStyle(fontSize: 14), // Reduced font size
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Text(
+                AppConstants.moodDescriptions[moodNumber] ?? '',
+                style: TextStyle(
+                  fontSize: 10, // Reduced font size
+                  color: Theme.of(context).brightness == Brightness.light
+                      ? Colors.black54
+                      : Colors.white70,
+                ),
+              ),
+            ],
+          ),
         );
       }),
     );

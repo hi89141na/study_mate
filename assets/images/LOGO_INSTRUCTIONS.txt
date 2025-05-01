@@ -1,0 +1,12 @@
+STUDYMATE LOGO INSTRUCTIONS
+
+To add a logo to the login and signup screens:
+
+1. Create or obtain a logo image for StudyMate 
+2. Save it as "logo.png" in this directory (assets/images/)
+3. Make sure the image is clear on both light and dark backgrounds
+4. Recommended size: 500x500 pixels or similar aspect ratio
+
+Once you've added the logo.png file, the login and signup screens will automatically display it.
+
+Note: If your app is already running, you may need to restart it to see the logo. 

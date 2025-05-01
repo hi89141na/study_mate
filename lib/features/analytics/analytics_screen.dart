@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/firebase_service.dart';
 import '../../core/theme/theme_toggle_button.dart';
@@ -7,49 +8,99 @@ import 'mood_chart.dart';
 import 'subject_pie_chart.dart';
 import 'time_chart.dart';
 
-class AnalyticsScreen extends StatelessWidget {
+class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({Key? key}) : super(key: key);
 
   @override
+  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+}
+
+class _AnalyticsScreenState extends State<AnalyticsScreen> {
+  String _selectedTimePeriod = 'all'; // Default to all time
+  
+  // Get time period dates
+  DateTime get _startDate {
+    final now = DateTime.now();
+    switch (_selectedTimePeriod) {
+      case 'today':
+        return DateTime(now.year, now.month, now.day);
+      case 'week':
+        return DateTime(now.year, now.month, now.day - 7);
+      case 'month':
+        return DateTime(now.year, now.month - 1, now.day);
+      case 'year':
+        return DateTime(now.year - 1, now.month, now.day);
+      default:
+        return DateTime(2000); // A date far in the past to include all records
+    }
+  }
+  
+  DateTime get _endDate {
+    final now = DateTime.now();
+    if (_selectedTimePeriod == 'today') {
+      return DateTime(now.year, now.month, now.day, 23, 59, 59);
+    }
+    return now.add(const Duration(days: 1));
+  }
+  
+  String get _timePeriodLabel {
+    switch (_selectedTimePeriod) {
+      case 'today':
+        return 'Today';
+      case 'week':
+        return 'Past Week';
+      case 'month':
+        return 'Past Month';
+      case 'year':
+        return 'Past Year';
+      default:
+        return 'All Time';
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
+    final userId = Provider.of<AuthService>(context).currentUser?.uid ?? '';
     final firebaseService = Provider.of<FirebaseService>(context);
     
-    if (!authService.isAuthenticated) {
-      return Center(
-        child: Text(
-          'You need to login to view analytics',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      );
-    }
-    
-    final String userId = authService.currentUser?.uid ?? '';
+    // If no user is logged in, show a message
     if (userId.isEmpty) {
-      return Center(
-        child: Text(
-          'Unable to load user data. Please try again.',
-          style: Theme.of(context).textTheme.titleMedium,
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Analytics'),
+          actions: [
+            const ThemeToggleButton(),
+          ],
+        ),
+        body: const Center(
+          child: Text('Please log in to view your analytics'),
         ),
       );
     }
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+
+    return Scaffold(
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            'Your Study Analytics',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Your Study Analytics',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+              _buildTimePeriodDropdown(),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
-            'Track your progress and study habits',
+            'Stats for $_timePeriodLabel',
             style: TextStyle(
               fontSize: 14,
               color: Theme.of(context).brightness == Brightness.light
@@ -60,9 +111,11 @@ class AnalyticsScreen extends StatelessWidget {
           const SizedBox(height: 24),
           _buildAnalyticsCard(
             context,
-            title: 'Total Study Time',
+            title: 'Study Time',
             child: FutureBuilder<int>(
-              future: firebaseService.getTotalStudyMinutes(userId),
+              future: _selectedTimePeriod == 'all'
+                  ? firebaseService.getTotalStudyMinutes(userId)
+                  : firebaseService.getStudyMinutesForPeriod(userId, _startDate, _endDate),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const SizedBox(
@@ -103,7 +156,11 @@ class AnalyticsScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const TimeChart(),
+                    TimeChart(
+                      timePeriod: _selectedTimePeriod,
+                      startDate: _startDate,
+                      endDate: _endDate,
+                    ),
                   ],
                 );
               },
@@ -114,7 +171,9 @@ class AnalyticsScreen extends StatelessWidget {
             context,
             title: 'Subject Distribution',
             child: FutureBuilder<Map<String, int>>(
-              future: firebaseService.getSubjectDistribution(userId),
+              future: _selectedTimePeriod == 'all'
+                  ? firebaseService.getSubjectDistribution(userId)
+                  : firebaseService.getSubjectDistributionForPeriod(userId, _startDate, _endDate),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const SizedBox(
@@ -145,7 +204,7 @@ class AnalyticsScreen extends StatelessWidget {
                   return const SizedBox(
                     height: 300,
                     child: Center(
-                      child: Text('No data available'),
+                      child: Text('No data available for this time period'),
                     ),
                   );
                 }
@@ -159,7 +218,9 @@ class AnalyticsScreen extends StatelessWidget {
             context,
             title: 'Mood Distribution',
             child: FutureBuilder<Map<int, int>>(
-              future: firebaseService.getMoodDistribution(userId),
+              future: _selectedTimePeriod == 'all'
+                  ? firebaseService.getMoodDistribution(userId)
+                  : firebaseService.getMoodDistributionForPeriod(userId, _startDate, _endDate),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const SizedBox(
@@ -190,7 +251,7 @@ class AnalyticsScreen extends StatelessWidget {
                   return const SizedBox(
                     height: 300,
                     child: Center(
-                      child: Text('No data available'),
+                      child: Text('No data available for this time period'),
                     ),
                   );
                 }
@@ -199,8 +260,40 @@ class AnalyticsScreen extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTimePeriodDropdown() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedTimePeriod,
+          items: [
+            DropdownMenuItem(value: 'today', child: Text('Today')),
+            DropdownMenuItem(value: 'week', child: Text('Past Week')),
+            DropdownMenuItem(value: 'month', child: Text('Past Month')),
+            DropdownMenuItem(value: 'year', child: Text('Past Year')),
+            DropdownMenuItem(value: 'all', child: Text('All Time')),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _selectedTimePeriod = value;
+              });
+            }
+          },
+          icon: const Icon(Icons.calendar_today, size: 16),
+          elevation: 2,
+          isDense: true,
+        ),
       ),
     );
   }

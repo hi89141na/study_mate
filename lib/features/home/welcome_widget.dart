@@ -5,6 +5,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/firebase_service.dart';
 import '../../core/utils/constants.dart';
 import '../../widgets/quote_banner.dart';
+import '../../models/study_session_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class WelcomeWidget extends StatefulWidget {
@@ -100,7 +101,7 @@ class _WelcomeWidgetState extends State<WelcomeWidget> {
 
   Widget _buildStatsSummary(String userId, FirebaseService firebaseService, BuildContext context) {
     return FutureBuilder<int>(
-      future: firebaseService.getTotalStudyMinutes(userId),
+      future: firebaseService.getTodayStudyMinutes(userId),
       builder: (context, snapshot) {
         // Handle loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -127,9 +128,9 @@ class _WelcomeWidgetState extends State<WelcomeWidget> {
           );
         }
         
-        final totalMinutes = snapshot.data ?? 0;
-        final hours = totalMinutes ~/ 60;
-        final minutes = totalMinutes % 60;
+        final todayMinutes = snapshot.data ?? 0;
+        final hours = todayMinutes ~/ 60;
+        final minutes = todayMinutes % 60;
         
         return Card(
           elevation: 2,
@@ -142,7 +143,7 @@ class _WelcomeWidgetState extends State<WelcomeWidget> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Your Stats',
+                  'Today\'s Stats',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -156,7 +157,7 @@ class _WelcomeWidgetState extends State<WelcomeWidget> {
                       child: _statItem(
                         context,
                         icon: Icons.timer_outlined,
-                        label: 'Study Time',
+                        label: 'Today\'s Study Time',
                         value: hours > 0 
                             ? '$hours hrs $minutes min'
                             : '$minutes min',
@@ -164,8 +165,8 @@ class _WelcomeWidgetState extends State<WelcomeWidget> {
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: FutureBuilder<Map<String, int>>(
-                        future: firebaseService.getSubjectDistribution(userId),
+                      child: FutureBuilder<List<StudySessionModel>>(
+                        future: firebaseService.getSessionsByDate(userId, DateTime.now()),
                         builder: (context, snapshot) {
                           // Add error handling
                           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -180,17 +181,17 @@ class _WelcomeWidgetState extends State<WelcomeWidget> {
                             return _statItem(
                               context,
                               icon: Icons.book_outlined,
-                              label: 'Subjects',
+                              label: 'Today\'s Sessions',
                               value: '-',
                             );
                           }
                           
-                          final subjects = snapshot.data?.length ?? 0;
+                          final sessionCount = snapshot.data?.length ?? 0;
                           return _statItem(
                             context,
-                            icon: Icons.book_outlined,
-                            label: 'Subjects',
-                            value: '$subjects',
+                            icon: Icons.fact_check_outlined,
+                            label: 'Today\'s Sessions',
+                            value: '$sessionCount',
                           );
                         },
                       ),

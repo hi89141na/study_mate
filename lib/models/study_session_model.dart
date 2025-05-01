@@ -19,7 +19,7 @@ class StudySessionModel {
     required this.reflection,
     DateTime? createdAt,
   }) : 
-    this.id = id ?? const Uuid().v4(),
+    this.id = id ??  Uuid().v4(),
     this.createdAt = createdAt ?? DateTime.now();
 
   factory StudySessionModel.fromFirestore(DocumentSnapshot doc) {
